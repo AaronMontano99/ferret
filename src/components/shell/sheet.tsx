@@ -33,7 +33,8 @@ export function Sheet({ title, subtitle, onClose, children, footer }: { title: s
           <X size={18} />
         </button>
       </div>
-      <div className="flex-1 overflow-y-auto px-6 pb-5">{children}</div>
+      {/* flex-auto, not flex-1: Safari sizes a phone sheet from this box's basis, and a zero basis collapses the sheet. */}
+      <div className="min-h-0 flex-auto overflow-y-auto overscroll-contain px-6 pb-5">{children}</div>
       {footer && <div className="flex items-center gap-2.5 border-t border-hairline px-6 py-4">{footer}</div>}
     </dialog>
   );
