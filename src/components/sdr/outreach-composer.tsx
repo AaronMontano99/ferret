@@ -67,7 +67,7 @@ export function OutreachComposer({ kind, compact = false }: { kind: Kind; compac
 
   return (
     <div className="glass p-5 ">
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3 sm:flex-nowrap">
         <span className="shrink-0 text-[17px] font-semibold tracking-[-0.01em] text-ink">{copy.verb}</span>
         <Input
           value={company}
