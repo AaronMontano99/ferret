@@ -214,3 +214,35 @@ export function formatAge(iso: string): string {
   if (days === 1) return 'yesterday';
   return `${days} days ago`;
 }
+
+type Check = { personCurrent: string; personEvidence: string; signalCurrent: string; signalEvidence: string; angleFit: string; angleReason: string };
+
+/**
+ * The double check before any outreach: right person, still
+ * there, signal still true, angle relevant to this person. Older drafts
+ * made before the check existed show nothing.
+ */
+export function PreSendCheck({ check }: { check?: Check | null }) {
+  if (!check) return null;
+  const tone = (ok: boolean, bad: boolean) => (bad ? 'border-bad bg-bad-soft' : ok ? 'border-good bg-good-soft' : 'border-warn bg-warn-soft');
+  const items = [
+    { label: 'Still there?', value: check.personCurrent === 'verified' ? 'Verified' : check.personCurrent === 'left' ? 'Left the company' : 'Not confirmed', ok: check.personCurrent === 'verified', bad: check.personCurrent === 'left', why: check.personEvidence },
+    { label: 'Signal still true?', value: check.signalCurrent === 'verified' ? 'Verified' : check.signalCurrent === 'stale' ? 'Stale' : 'Not confirmed', ok: check.signalCurrent === 'verified', bad: check.signalCurrent === 'stale', why: check.signalEvidence },
+    { label: 'Angle fits them?', value: check.angleFit === 'strong' ? 'Yes' : check.angleFit === 'wrong_person' ? 'Wrong person' : 'Weak', ok: check.angleFit === 'strong', bad: check.angleFit === 'wrong_person', why: check.angleReason },
+  ];
+  const allGood = items.every((i) => i.ok);
+  return (
+    <div className="flex flex-col gap-2">
+      <MicroLabel>{allGood ? 'Double check · all clear' : 'Double check before you send'}</MicroLabel>
+      <div className="grid gap-2 sm:grid-cols-3">
+        {items.map((i) => (
+          <div key={i.label} className={`rounded-md border px-3 py-2 ${tone(i.ok, i.bad)}`}>
+            <div className="text-[12px] text-muted">{i.label}</div>
+            <div className="text-[13.5px] font-medium text-ink">{i.value}</div>
+            {i.why && <div className="mt-0.5 text-[12px] leading-[1.45] text-body">{i.why}</div>}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}

@@ -1,5 +1,6 @@
 'use client';
 
+import { PreSendCheck } from './shared';
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import type { EmailDraft } from '@/ai/sdr/schemas';
@@ -140,6 +141,7 @@ export function EmailPanel({ accountId, initialDraft, hasFreshIntel, initiallySe
             <Field label="Angle">{email.angle}</Field>
             <Field label="Why this person">{email.whyPerson}</Field>
           </div>
+          <PreSendCheck check={email.preSendCheck} />
 
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between">
@@ -157,7 +159,7 @@ export function EmailPanel({ accountId, initialDraft, hasFreshIntel, initiallySe
               </div>
             </div>
             <Textarea value={body} onChange={(e) => setBody(e.target.value)} rows={Math.max(10, body.split('\n').length + 2)} className="!text-[14px] leading-[1.6]" />
-            <StyleCheck subject={subject} body={body} ctaType={email.ctaType} />
+            <StyleCheck subject={subject} body={body} ctaType={email.ctaType} warm={!/net-new/i.test(email.crmHistory)} />
           </div>
 
           <Field label="Meeting to earn (15 min)">{email.meetingHypothesis}</Field>
@@ -239,8 +241,8 @@ export function EmailPanel({ accountId, initialDraft, hasFreshIntel, initiallySe
 }
 
 /** Live check against Aaron's hard-coded email style (src/domain/email-style.ts), including his own edits. */
-function StyleCheck({ subject, body, ctaType }: { subject: string; body: string; ctaType: 'meeting' | 'question' }) {
-  const issues = lintEmail(subject, body, ctaType);
+function StyleCheck({ subject, body, ctaType, warm }: { subject: string; body: string; ctaType: 'meeting' | 'question'; warm?: boolean }) {
+  const issues = lintEmail(subject, body, ctaType, { warm });
   if (issues.length === 0) return <p className="text-[12px] text-good">✓ Passes your style rules</p>;
   return (
     <div className="rounded-md bg-warn-soft px-3 py-2 text-[12px] text-ink">

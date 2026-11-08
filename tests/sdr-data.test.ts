@@ -35,6 +35,7 @@ const intel: AccountIntel = {
 
 function card(priority: CallCard['priority']): CallCard {
   return {
+    preSendCheck: { personCurrent: 'unverified', personEvidence: 'Demo data', signalCurrent: 'unverified', signalEvidence: 'Demo data', angleFit: 'strong', angleReason: 'Demo data' },
     background: [],
     signalStatus: 'NO RECENT SIGNAL',
     whyNow: '',

@@ -126,9 +126,20 @@ function validate<T>(schema: z.ZodType<T>, data: unknown, what: string): T {
 }
 
 
+const TITLE_WORDS = /^(president|owner|ceo|cfo|coo|cio|cto|founder|principal|partner|manager|director|controller|administrator|head|vp|unknown|tbd|n\/a|the)$/i;
+
 function firstName(fullName: string): string {
   const first = fullName.trim().split(/\s+/)[0] ?? '';
-  return /^[A-Za-z][A-Za-z'-]*$/.test(first) ? first : '';
+  // A title in the name slot ("President") is not a name: fall back to "Hi,".
+  return /^[A-Za-z][A-Za-z'-]*$/.test(first) && !TITLE_WORDS.test(first) ? first : '';
+}
+
+/** If the contact left, the email is the wrong move: call to find who replaced them. */
+function applyPreSendCheck<T extends { recommendation?: string; recommendationReason?: string; preSendCheck?: { personCurrent: string; personEvidence: string } }>(email: T): T {
+  if (email.preSendCheck?.personCurrent === 'left' && email.recommendation !== 'call_first') {
+    return { ...email, recommendation: 'call_first', recommendationReason: `The contact appears to have left (${email.preSendCheck.personEvidence}). Call the front desk and ask who handles this now.` };
+  }
+  return email;
 }
 
 const simpleEmailSchema = z.object({ subject: z.string(), body: z.string() });
@@ -139,16 +150,22 @@ const simpleEmailSchema = z.object({ subject: z.string(), body: z.string() });
  * rewrite. Keeps whichever version has fewer issues and reports what's
  * left so the UI can flag it — never loops.
  */
+/** Warm = Aaron has history with this account (CRM notes or a logged touch). Cold = net-new. */
+function isWarm(accountId: string): boolean {
+  return getCrmNotes(accountId).length > 0 || getActivitiesForAccount(accountId).length > 0;
+}
+
 async function enforceEmailStyle<T extends { subject: string; body: string; ctaType?: 'meeting' | 'question' }>(
   email: T,
   contactName: string,
-  context: string
+  context: string,
+  warm?: boolean
 ): Promise<{ email: T; styleIssues: EmailStyleIssue[] }> {
   const id = getIdentity();
   const clean = (e: T): T => ({ ...e, subject: normalizeSubject(e.subject), body: normalizeEmail(e.body, firstName(contactName), id.name, id.company) });
   let best = clean(email);
   const cta = email.ctaType ?? 'meeting';
-  let issues = lintEmail(best.subject, best.body, cta);
+  let issues = lintEmail(best.subject, best.body, cta, { warm });
   if (issues.length === 0) return { email: best, styleIssues: [] };
 
   try {
@@ -172,7 +189,7 @@ async function enforceEmailStyle<T extends { subject: string; body: string; ctaT
     const fixed = simpleEmailSchema.safeParse(result.data);
     if (fixed.success) {
       const candidate = clean({ ...best, subject: fixed.data.subject, body: fixed.data.body });
-      const candidateIssues = lintEmail(candidate.subject, candidate.body, cta);
+      const candidateIssues = lintEmail(candidate.subject, candidate.body, cta, { warm });
       if (candidateIssues.length < issues.length) {
         best = candidate;
         issues = candidateIssues;
@@ -309,7 +326,7 @@ export async function generateEmail(accountId: string, options: GenerateOptions 
     const out = validate(schema, result.data, 'email');
     const intel = normalizeIntel(out.intel);
     saveIntel(accountId, intel, result.model);
-    const styled = await enforceEmailStyle(out.email, out.email.contact.name, buildAccountContext(accountId, getIntel(accountId)));
+    const styled = await enforceEmailStyle(applyPreSendCheck(out.email), out.email.contact.name, buildAccountContext(accountId, getIntel(accountId)), isWarm(accountId));
     const draftId = saveDraft(accountId, 'email', styled.email, options.instruction ?? null, result.model);
     return { draftId, email: styled.email, styleIssues: styled.styleIssues, intel, researched: true, durationMs: result.durationMs };
   }
@@ -322,7 +339,7 @@ export async function generateEmail(accountId: string, options: GenerateOptions 
     timeoutMs: WRITE_TIMEOUT_MS,
   });
   const raw = validate(emailDraftSchema, result.data, 'email');
-  const styled = await enforceEmailStyle(raw, raw.contact.name, buildAccountContext(accountId, stored));
+  const styled = await enforceEmailStyle(applyPreSendCheck(raw), raw.contact.name, buildAccountContext(accountId, stored), isWarm(accountId));
   const draftId = saveDraft(accountId, 'email', styled.email, options.instruction ?? null, result.model);
   return { draftId, email: styled.email, styleIssues: styled.styleIssues, intel: stored?.intel ?? null, researched: false, durationMs: result.durationMs };
 }
@@ -355,7 +372,7 @@ export async function reviseDraft(
   const reviseContext = buildAccountContext(accountId, getIntel(accountId));
   if (kind === 'email') {
     const email = data as EmailDraft;
-    const styled = await enforceEmailStyle(email, email.contact.name, reviseContext);
+    const styled = await enforceEmailStyle(email, email.contact.name, reviseContext, isWarm(accountId));
     data = styled.email;
     styleIssues = styled.styleIssues;
   } else {
@@ -387,7 +404,7 @@ export async function coachNotes(accountId: string, notes: string, channel: stri
   });
   const debrief = stripDashesDeep(validate(debriefSchema, result.data, 'debrief'));
   if (debrief.followUpEmail.body.trim()) {
-    const styled = await enforceEmailStyle(debrief.followUpEmail, debrief.contactName, notes);
+    const styled = await enforceEmailStyle(debrief.followUpEmail, debrief.contactName, notes, true);
     debrief.followUpEmail = styled.email;
   }
   return debrief;

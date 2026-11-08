@@ -127,6 +127,7 @@ function callCard(company: string, contact: string): CallCard {
   const [name = '', title = ''] = contact.split(', ');
   const first = firstName(name.replace('Dr. ', ''));
   return {
+    preSendCheck: { personCurrent: 'unverified', personEvidence: 'Demo data', signalCurrent: 'unverified', signalEvidence: 'Demo data', angleFit: 'strong', angleReason: 'Demo data' },
     background: [`${company} moved to a bigger office this quarter.`, 'About 40 people at the local site, est.', 'Decisions look local, not corporate.'],
     signalStatus: 'SOFT SIGNAL',
     whyNow: 'They just moved, so the setup they planned for the old office may not fit the new one.',
@@ -157,6 +158,7 @@ function emailDraft(company: string, contact: string): EmailDraft {
   const [name = '', title = ''] = contact.split(', ');
   const first = firstName(name.replace('Dr. ', ''));
   return {
+    preSendCheck: { personCurrent: 'unverified', personEvidence: 'Demo data', signalCurrent: 'unverified', signalEvidence: 'Demo data', angleFit: 'strong', angleReason: 'Demo data' },
     priority: 'MEDIUM',
     skipReason: '',
     recommendation: 'send',

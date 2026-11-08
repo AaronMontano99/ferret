@@ -1,5 +1,6 @@
 'use client';
 
+import { PreSendCheck } from './shared';
 import { useEffect, useRef, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import type { CallCard } from '@/ai/sdr/schemas';
@@ -155,6 +156,7 @@ function CardView({ card, identity }: { card: CallCard; identity: RepIdentity })
       </div>
       {card.take && <p className="max-w-[760px] text-[14px] leading-[1.6] text-body">{card.take}</p>}
       {card.target.why && <p className="-mt-2 text-[12.5px] text-muted">Why this person: {card.target.why}</p>}
+      <PreSendCheck check={card.preSendCheck} />
 
       <Field label="Opening" emphasis copy={card.opening}>
         {card.opening}

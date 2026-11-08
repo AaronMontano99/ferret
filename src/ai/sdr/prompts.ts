@@ -8,7 +8,7 @@
  */
 import { emailStyleRulesText } from '@/domain/email-style';
 import { callStyleRulesText } from '@/domain/call-style';
-import { getPlaybook, getReference, type PlaybookName } from './playbooks';
+import { getPlaybook, getReference, getVoice, type PlaybookName } from './playbooks';
 
 function readPlaybook(name: PlaybookName): string {
   return getPlaybook(name);
@@ -53,6 +53,7 @@ export function callCardSystemPrompt(rep: RepContext, withResearch: boolean): st
     readPlaybook('examples'),
     getReference('sessions'),
     getReference('training'),
+    PRE_SEND_CHECK,
     callStyleRulesText(rep),
     withResearch ? RESEARCH_RULES : '',
     `# OUTPUT (Ferret)
@@ -64,7 +65,17 @@ If the account is outside territory or clearly not ICP, still fill the card but 
     .join('\n\n');
 }
 
+export const PRE_SEND_CHECK = `# DOUBLE CHECK BEFORE ANY OUTREACH (Aaron's rule; fill preSendCheck honestly)
+1. Right person? Match the person to the problem: IT owns support and alerts, the controller owns receipts and spend, the owner owns risk and cost.
+2. Still there? Confirm with a CURRENT source that the contact is still at the company in that role. Old CRM notes and old lead lists don't count. If they left, say so and recommend calling to find who replaced them.
+3. Signal still true? Re-check the signal you lead with: is the permit still active, the job still posted, the expansion still happening, the date recent? If it is stale, don't lead with it; use the next true reason or say there is no strong current trigger.
+4. Angle fits this person? If the angle belongs to someone else, change the person or the angle.
+Never mark anything verified without a source you actually saw.`;
+
+const VOICE_PRECEDENCE = `Where AARON'S VOICE and older playbook text differ on wording, opener, length or the closing ask, follow AARON'S VOICE. Reuse his real phrases and rhythm; only the facts change per account. Use the opener from his table that is TRUE for this account, never one implying a visit, call or referral that did not happen.`;
+
 export function emailSystemPrompt(rep: RepContext, withResearch: boolean): string {
+  const voice = getVoice();
   return [
     header(rep),
     readPlaybook('emails'),
@@ -72,11 +83,14 @@ export function emailSystemPrompt(rep: RepContext, withResearch: boolean): strin
     readPlaybook('examples'),
     getReference('sessions'),
     getReference('training'),
+    voice,
+    voice ? VOICE_PRECEDENCE : '',
+    PRE_SEND_CHECK,
     emailStyleRulesText(rep.name),
     withResearch ? RESEARCH_RULES : '',
     `# OUTPUT (Ferret)
 Return ONE email for ONE account. Respect any instruction Aaron gives for this email; it overrides everything else.
-The body is the complete email from "Hi [First name]," to "Thanks," and the sign-off name, written as short flowing paragraphs (usually 3) separated by blank lines, never bulleted or broken into one-line fragments. 60-100 words.
+The body is the complete email from the greeting to "Thanks," and the sign-off name, written as short paragraphs separated by blank lines, never bulleted or broken into one-line fragments. Net-new (no CRM notes, no logged touches): cold first touch, about 40-80 words, ctaType "question". Accounts with history: warm, can run longer, ctaType "meeting" when a 10 or 15-minute ask makes sense.
 CRM accounts: reopen the exact unfinished thread from the notes. Net-new accounts: never imply prior familiarity.
 If the answers to WHY THIS ACCOUNT / WHY NOW are weak, set priority to SKIP and say why in skipReason (still write the best honest draft).
 If more information is needed before a meeting ask makes sense (unknown owner, unclear what an outside vendor covers), use ctaType "question": the email asks the one business question and no meeting. Otherwise ctaType "meeting".
@@ -96,6 +110,7 @@ export function debriefSystemPrompt(rep: RepContext): string {
     readPlaybook('examples'),
     getReference('sessions'),
     readPlaybook('hotlist'),
+    getVoice(),
     emailStyleRulesText(rep.name),
     `# OUTPUT (Ferret)
 Aaron is pasting raw notes from a call, walk-in, email reply (including bounces and auto-replies), or LinkedIn touch. If it's a no-pickup, give the next move per HOW AARON WORKS. Coach it like a sales manager, not a cheerleader, using the CALL COACHING format.
@@ -113,6 +128,7 @@ export function reviseSystemPrompt(rep: RepContext, kind: 'call_card' | 'email')
     readPlaybook(kind === 'email' ? 'emails' : 'calls'),
     getReference('workflow'),
     readPlaybook('examples'),
+    kind === 'email' ? getVoice() : '',
     kind === 'email' ? emailStyleRulesText(rep.name) : callStyleRulesText(rep),
     `# OUTPUT (Ferret)
 Aaron wants a change to an existing ${kind === 'email' ? 'email' : 'call card'}. Apply his instruction and return the full updated version in the same shape. Change only what the instruction asks for, keep every fact, and never add facts that weren't there. Keep all the playbook rules (no em dashes, one angle, one CTA).`,
@@ -151,6 +167,7 @@ export function styleFixSystemPrompt(rep: RepContext): string {
   return [
     header(rep),
     readPlaybook('emails'),
+    getVoice(),
     emailStyleRulesText(rep.name),
     `# OUTPUT (Ferret)
 An automatic style check flagged this email. Rewrite it so every flagged issue is fixed and nothing else changes: same facts, same angle, same thread, same person. Do not add facts. Return the full email in the same shape.`,

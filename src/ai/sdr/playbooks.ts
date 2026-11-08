@@ -68,6 +68,23 @@ export function getReference(name: ReferenceName): string {
   return read(REFERENCE_FILES[name]);
 }
 
+/**
+ * The rep's email voice: real sent emails, true-opener table and approved
+ * drafts per product. Lives at private/voice/voice.md (git-ignored; can be a
+ * symlink to the same file another private tool uses, so both write the same
+ * way) or wherever GTM_VOICE_PATH points. Empty if missing (the public demo).
+ */
+export function voicePath(): string | null {
+  const candidates = [process.env.GTM_VOICE_PATH, path.join(privateDir(), 'voice', 'voice.md')];
+  return candidates.find((p): p is string => !!p && fs.existsSync(p)) ?? null;
+}
+
+export function getVoice(): string {
+  const file = voicePath();
+  if (!file) return '';
+  return `# AARON'S VOICE (his real emails; newest and highest priority for wording, opener, length and CTA)\n${fs.readFileSync(file, 'utf-8').trim()}`;
+}
+
 export function hasPrivateContent(): boolean {
   const dir = privateDir();
   return [...Object.values(PLAYBOOK_FILES), ...Object.values(REFERENCE_FILES)].every((f) => fs.existsSync(path.join(dir, f)));

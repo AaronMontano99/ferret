@@ -56,6 +56,20 @@ export type AccountIntel = z.infer<typeof intelSchema>;
 
 export const SIGNAL_STATUS = z.enum(['HARD SIGNAL', 'SOFT SIGNAL', 'NO RECENT SIGNAL']);
 
+/**
+ * The rep's double check, required before any outreach:
+ * right person, still there, signal still true, angle relevant to THIS person.
+ */
+export const preSendCheckSchema = z.object({
+  personCurrent: z.enum(['verified', 'unverified', 'left']).describe('Is the contact still at the company in this role? verified only if a CURRENT source (company site, recent post, dated article, current LinkedIn result) shows it. left if any source shows they moved on.'),
+  personEvidence: z.string().describe('Source and date behind personCurrent, e.g. "Company team page, checked today" or "No current source found"'),
+  signalCurrent: z.enum(['verified', 'stale', 'unverified']).describe('Is the signal you lead with still true today? stale if it is over ~90 days old, already finished, filled, reversed or superseded.'),
+  signalEvidence: z.string().describe('Source and date behind signalCurrent'),
+  angleFit: z.enum(['strong', 'weak', 'wrong_person']).describe('Does the angle match what THIS person owns and is measured on (IT owns support/alerts, controller owns spend/receipts, owner owns risk and cost)? wrong_person if someone else owns this problem.'),
+  angleReason: z.string().describe('One line: why this angle matters to this person, or who owns it instead'),
+});
+export type PreSendCheck = z.infer<typeof preSendCheckSchema>;
+
 export const callCardSchema = z.object({
   background: z
     .array(z.string())
@@ -65,6 +79,7 @@ export const callCardSchema = z.object({
   priority: PRIORITY,
   take: z.string().describe('1-3 sentences of coaching before the card, e.g. "I\'d not lead with printers here. ..." Plain, direct.'),
   target: z.object({ name: z.string(), title: z.string(), why: z.string() }),
+  preSendCheck: preSendCheckSchema,
   routingContact: z.string().describe('Old/secondary contact useful for routing, and how to use them, or ""'),
   reason: z.string().describe('REASON: why this account, why now'),
   opening: z.string().describe('Exact opening line, in quotes-free spoken form, using the rep\'s opening shape: "[Name], [rep] with [company] here in [location]. Reason for my call, ..."'),
@@ -102,11 +117,12 @@ export const emailDraftSchema = z.object({
   hypothesis: z.string(),
   angle: z.string(),
   whyPerson: z.string(),
+  preSendCheck: preSendCheckSchema,
   subject: z.string(),
   ctaType: z
     .enum(['meeting', 'question'])
-    .describe('meeting = ends by asking for 15 minutes. question = more information is needed first, so the email asks the one business question and does not ask for a meeting yet.'),
-  body: z.string().describe('The full email, greeting to sign-off, as flowing short paragraphs (usually 3) separated by blank lines. 60-100 words. No em dashes.'),
+    .describe('meeting = ends by asking for 10 or 15 minutes (warm accounts). question = cold first touch or more information needed first: ask the one business question, no meeting ask yet.'),
+  body: z.string().describe('The full email, greeting to sign-off, short paragraphs separated by blank lines. Cold first touch about 40-80 words; warm follow-ups can run longer. No em dashes.'),
   meetingHypothesis: z.string(),
   crmNotes: z.array(z.string()).describe('Bullet CRM notes to log once sent, like "Emailed Jordan Hale", ..., "Awaiting response"'),
 });
