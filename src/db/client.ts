@@ -34,6 +34,9 @@ const SQL = await initSqlJs();
 function persist(db: SqlJsDatabase): void {
   if (DEMO) return;
   fs.writeFileSync(DB_PATH, Buffer.from(db.export()));
+  // sql.js export() resets PRAGMA foreign_keys to OFF, which silently
+  // disables ON DELETE CASCADE for the rest of the process. Turn it back on.
+  db.run('PRAGMA foreign_keys = ON;');
 }
 
 function openOrCreate(): SqlJsDatabase {
